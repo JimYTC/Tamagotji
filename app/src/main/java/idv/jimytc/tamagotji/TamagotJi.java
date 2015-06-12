@@ -1,17 +1,22 @@
 package idv.jimytc.tamagotji;
 
+import android.content.Context;
+import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ViewSwitcher;
 
 import com.koushikdutta.ion.Ion;
 
+import java.util.Random;
 import java.util.concurrent.Callable;
 
 import bolts.Continuation;
@@ -30,6 +35,10 @@ public class TamagotJi extends AppCompatActivity {
     EditText mInputPassword;
     @InjectView(R.id.gif_ji)
     ImageView mJi;
+    @InjectView(R.id.g_power)
+    ImageView mGPower;
+    @InjectView(R.id.vsteps)
+    ImageView mVSteps;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,6 +46,18 @@ public class TamagotJi extends AppCompatActivity {
         Utils.getJiService();
         setContentView(R.layout.activity_tamagot_ji);
         ButterKnife.inject(this);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        String id = Utils.getJiId(TamagotJi.this);
+        if (!TextUtils.isEmpty(id)) {
+            mViewSwitcher.showNext();
+        }
+        Ion.with(mJi).load("android.resource://" + getPackageName() + "/" + R.drawable.g1);
+        mGPower.setImageResource(sGPowerIds[mGPowerIdx]);
+        mVSteps.setImageResource(sVStepIds[mGPowerIdx]);
     }
 
     @Override
@@ -68,8 +89,6 @@ public class TamagotJi extends AppCompatActivity {
         if (TextUtils.isEmpty(email) || TextUtils.isEmpty(password)) {
             Utils.showToast(this, "Must have valid email and password");
         } else {
-            mViewSwitcher.showNext();
-            Ion.with(mJi).load("android.resource://" + getPackageName() + "/" + R.drawable.g1);
             Task.callInBackground(new Callable<JiModel>() {
                 @Override
                 public JiModel call() throws Exception {
@@ -90,11 +109,50 @@ public class TamagotJi extends AppCompatActivity {
                 @Override
                 public Void then(Task<JiModel> task) throws Exception {
                     if (!task.isCancelled() && !task.isFaulted()) {
-                        JiModel jiModel = task.getResult();
+                        mMyJi = task.getResult();
+                        mViewSwitcher.showNext();
+
+                        InputMethodManager imm = (InputMethodManager)getSystemService(
+                                Context.INPUT_METHOD_SERVICE);
+                        imm.hideSoftInputFromWindow(mInputPassword.getWindowToken(), 0);
                     }
                     return null;
                 }
             }, Utils.sUiThreadExecutor);
         }
     }
+
+    private static final int[] sGPowerIds = {
+            R.drawable.gpower1,
+            R.drawable.gpower2,
+            R.drawable.gpower3
+    };
+
+    private static final int[] sVStepIds = {
+            R.drawable.vsteps1,
+            R.drawable.vsteps2,
+            R.drawable.vsteps3
+    };
+
+    @OnClick(R.id.feed_me)
+    public void feed() {
+        mGPowerIdx = ++mGPowerIdx % sGPowerIds.length;
+        mGPower.setImageResource(sGPowerIds[mGPowerIdx]);
+
+        Ion.with(mJi).load("android.resource://" + getPackageName() + "/" + R.drawable.g2);
+
+        mVStepsIdx = ++mVStepsIdx % sVStepIds.length;
+        mVSteps.setImageResource(sVStepIds[mVStepsIdx]);
+    }
+
+    @OnClick(R.id.find_friends)
+    public void goToFriendsList() {
+        Intent intent = new Intent(this, FriendsLIst.class);
+        startActivity(intent);
+    }
+
+    private JiModel mMyJi;
+
+    private int mGPowerIdx = 1;
+    private int mVStepsIdx = 0;
 }
